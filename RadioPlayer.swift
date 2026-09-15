@@ -6,7 +6,9 @@
 import Foundation
 import AVFoundation
 import MediaPlayer
+#if !os(tvOS)
 import NowPlaying
+#endif
 import ShazamKit
 import Observation
 #if canImport(UIKit)
@@ -41,6 +43,7 @@ final class RadioPlayer: NSObject {
     @ObservationIgnored private var hasStreamMetadata = false
     @ObservationIgnored private var lastArtworkKey = ""
 
+    #if !os(tvOS)
     @ObservationIgnored private var _mediaSession: AnyObject?
 
     @available(iOS 27, macOS 27, *)
@@ -48,6 +51,7 @@ final class RadioPlayer: NSObject {
         get { _mediaSession as? MediaSession<RadioPlayer> }
         set { _mediaSession = newValue }
     }
+    #endif
 
     init(station: RadioStation) {
         self.station = station
@@ -57,6 +61,7 @@ final class RadioPlayer: NSObject {
         print("[Player] init – Station: \(station.name), Stream: \(station.streamURL)")
         configureAudioSession()
         setupInterruptionHandling()
+        #if !os(tvOS)
         if #available(iOS 27, macOS 27, *) {
             mediaSession = MediaSession(self)
             print("[Player] MediaSession (iOS 27) erstellt")
@@ -64,6 +69,10 @@ final class RadioPlayer: NSObject {
             configureRemoteCommandsLegacy()
             print("[Player] Legacy-RemoteCommands konfiguriert")
         }
+        #else
+        configureRemoteCommandsLegacy()
+        print("[Player] Legacy-RemoteCommands konfiguriert (tvOS)")
+        #endif
     }
 
     deinit {
@@ -94,7 +103,10 @@ final class RadioPlayer: NSObject {
         hasStreamMetadata = false
         lastArtworkKey = ""
         startPolling()
+        #if !os(tvOS)
         startShazamTimerIfNeeded()
+        #endif
+        #if !os(tvOS)
         if #available(iOS 27, macOS 27, *) {
             Task {
                 try? await mediaSession?.requestToBecomeApplicationPrimary()
@@ -105,6 +117,9 @@ final class RadioPlayer: NSObject {
         } else {
             updateNowPlayingCenterLegacy()
         }
+        #else
+        updateNowPlayingCenterLegacy()
+        #endif
     }
 
     func pause() {
@@ -112,12 +127,16 @@ final class RadioPlayer: NSObject {
         player?.pause()
         state = .paused
         stopPolling()
+        #if !os(tvOS)
         stopShazam()
         if #available(iOS 27, macOS 27, *) {
             // MediaSession beobachtet state-Änderungen automatisch über @Observable
         } else {
             updateNowPlayingCenterLegacy()
         }
+        #else
+        updateNowPlayingCenterLegacy()
+        #endif
     }
 
     // MARK: - Player-Setup
@@ -140,11 +159,15 @@ final class RadioPlayer: NSObject {
                     self.player?.play()
                     self.state = .playing
                     print("[Player] AVPlayerItem readyToPlay → state = .playing")
+                    #if !os(tvOS)
                     if #available(iOS 27, macOS 27, *) {
                         // automatisch
                     } else {
                         self.updateNowPlayingCenterLegacy()
                     }
+                    #else
+                    self.updateNowPlayingCenterLegacy()
+                    #endif
                 case .failed:
                     let msg = item.error?.localizedDescription ?? "Unbekannter Fehler"
                     print("[Player] AVPlayerItem failed: \(msg)")
@@ -163,7 +186,9 @@ final class RadioPlayer: NSObject {
     private func tearDownPlayer() {
         print("[Player] tearDownPlayer()")
         stopPolling()
+        #if !os(tvOS)
         stopShazam()
+        #endif
         statusObservation = nil
         player?.pause()
         player = nil
@@ -219,7 +244,7 @@ final class RadioPlayer: NSObject {
     }
     #endif
 
-    // MARK: - Legacy: MPRemoteCommandCenter / MPNowPlayingInfoCenter (iOS < 27)
+    // MARK: - Legacy: MPRemoteCommandCenter / MPNowPlayingInfoCenter
 
     private func configureRemoteCommandsLegacy() {
         let center = MPRemoteCommandCenter.shared()
@@ -272,8 +297,9 @@ final class RadioPlayer: NSObject {
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info
     }
 
-    // MARK: - ShazamKit (Fallback-Erkennung wenn kein Stream-Titel)
+    // MARK: - ShazamKit (Fallback – nicht auf tvOS)
 
+    #if !os(tvOS)
     private func startShazamTimerIfNeeded() {
         print("[Shazam] Timer gestartet – Shazam startet in 15 s, falls kein Stream-Titel kommt")
         shazamTimerTask?.cancel()
@@ -325,6 +351,7 @@ final class RadioPlayer: NSObject {
         shazamRecognizer?.stop()
         shazamRecognizer = nil
     }
+    #endif
 
     // MARK: - iTunes Cover-Art-Lookup
 
@@ -346,9 +373,13 @@ final class RadioPlayer: NSObject {
         let highRes = track.artworkUrl100.replacingOccurrences(of: "100x100bb", with: "600x600bb")
         print("[iTunes] Artwork gefunden: \(highRes)")
         nowPlaying.artworkURL = URL(string: highRes)
+        #if !os(tvOS)
         if #available(iOS 27, macOS 27, *) {} else {
             updateNowPlayingCenterLegacy()
         }
+        #else
+        updateNowPlayingCenterLegacy()
+        #endif
     }
 
     // MARK: - Icecast-API-Polling
@@ -423,13 +454,19 @@ final class RadioPlayer: NSObject {
         nowPlaying.artist = artist
         nowPlaying.title = songTitle
         hasStreamMetadata = true
+        #if !os(tvOS)
         stopShazam()
+        #endif
         await fetchArtwork(artist: nowPlaying.artist, title: nowPlaying.title)
+        #if !os(tvOS)
         if #available(iOS 27, macOS 27, *) {
             // automatisch
         } else {
             updateNowPlayingCenterLegacy()
         }
+        #else
+        updateNowPlayingCenterLegacy()
+        #endif
     }
 
     /// Icecast-Server kodieren den Titel manchmal als UTF-8, lesen ihn aber
@@ -443,6 +480,7 @@ final class RadioPlayer: NSObject {
 
 // MARK: - NowPlaying Framework (iOS 27 / macOS 27+)
 
+#if !os(tvOS)
 @available(iOS 27, macOS 27, *)
 @MainActor
 extension RadioPlayer: MediaSessionRepresentable {
@@ -507,6 +545,7 @@ extension RadioPlayer: MediaSessionRepresentable {
         }
     }
 }
+#endif
 
 // MARK: - ICY-Metadaten
 
@@ -538,13 +577,19 @@ extension RadioPlayer: AVPlayerItemMetadataOutputPushDelegate {
                     self.nowPlaying.artist = artist
                     self.nowPlaying.title = songTitle
                     self.hasStreamMetadata = true
+                    #if !os(tvOS)
                     self.stopShazam()
+                    #endif
                     await self.fetchArtwork(artist: artist, title: songTitle)
+                    #if !os(tvOS)
                     if #available(iOS 27, macOS 27, *) {
                         // automatisch
                     } else {
                         self.updateNowPlayingCenterLegacy()
                     }
+                    #else
+                    self.updateNowPlayingCenterLegacy()
+                    #endif
                 }
             }
         }

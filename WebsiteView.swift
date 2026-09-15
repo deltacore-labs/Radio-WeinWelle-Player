@@ -1,3 +1,4 @@
+#if !os(tvOS)
 //
 //  WebsiteView.swift
 //  Radio-WeinWelle-Player
@@ -42,3 +43,4 @@ extension WebView: NSViewRepresentable {
 #Preview {
     WebsiteView(url: URL(string: "https://www.radio-wein-welle.de")!)
 }
+#endif

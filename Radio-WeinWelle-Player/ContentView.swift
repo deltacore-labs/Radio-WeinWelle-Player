@@ -9,6 +9,9 @@ struct ContentView: View {
     @Environment(RadioPlayer.self) private var player
 
     var body: some View {
+        #if os(tvOS)
+        PlayerView()
+        #else
         TabView {
             PlayerView()
                 .tabItem { Label("Player", systemImage: "dot.radiowaves.left.and.right") }
@@ -20,6 +23,7 @@ struct ContentView: View {
                 .tabItem { Label("Info", systemImage: "info.circle") }
         }
         .tint(Color(red: 0.757, green: 0.184, blue: 0.212)) // #c12f36 Wein-Welle brand red
+        #endif
     }
 }
 

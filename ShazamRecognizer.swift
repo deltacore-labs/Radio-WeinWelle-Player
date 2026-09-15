@@ -19,6 +19,10 @@ final class ShazamRecognizer: NSObject {
     private var signatureTask: Task<Void, Never>?
 
     func start(with item: AVPlayerItem) {
+        #if os(tvOS)
+        print("[StreamShazam] tvOS hat kein Mikrofon – Shazam deaktiviert")
+        return
+        #endif
         guard !isRunning else {
             print("[StreamShazam] start() ignoriert – läuft bereits")
             return

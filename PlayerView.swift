@@ -15,28 +15,32 @@ struct PlayerView: View {
             ArtworkBackground(url: player.nowPlaying.artworkURL, isPlaying: isPlaying)
                 .ignoresSafeArea()
 
+            #if os(tvOS)
+            tvOSCard
+                .padding(.horizontal, 80)
+                .padding(.vertical, 60)
+            #else
             VStack {
                 Spacer()
                 card
                 Spacer()
             }
             .padding(.vertical, 24)
+            #endif
         }
         .preferredColorScheme(.dark)
     }
 
-    // MARK: - Card
+    // MARK: - iOS/macOS Card
 
+    #if !os(tvOS)
     private var card: some View {
         VStack(spacing: 0) {
-            // Artwork floats above the glass panel (42 pt overlap)
             artwork
                 .padding(.bottom, -22)
                 .zIndex(1)
 
-            // Glass panel
             VStack(spacing: 22) {
-                // top spacer compensates for artwork overlap
                 Spacer().frame(height: 24)
 
                 VStack(spacing: 7) {
@@ -54,37 +58,139 @@ struct PlayerView: View {
             }
             .padding(.bottom, 32)
             .padding(.horizontal, 28)
-            .background {
-                RoundedRectangle(cornerRadius: 36, style: .continuous)
-                    .fill(.ultraThinMaterial)
-                    .overlay {
-                        // Top highlight rim — gives the card a "lit from above" look
-                        RoundedRectangle(cornerRadius: 36, style: .continuous)
-                            .strokeBorder(
-                                LinearGradient(
-                                    colors: [.white.opacity(0.55), .white.opacity(0.04)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 1.5
-                            )
-                    }
-                    .overlay(alignment: .top) {
-                        // Subtle inner glow at the top edge of the panel
-                        LinearGradient(
-                            colors: [.white.opacity(0.12), .clear],
-                            startPoint: .top,
-                            endPoint: .center
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: 36, style: .continuous))
-                        .frame(height: 90)
-                    }
-            }
+            .background { cardBackground(cornerRadius: 36) }
             .shadow(color: .black.opacity(0.55), radius: 40, y: 20)
             .zIndex(0)
         }
         .frame(maxWidth: 480)
         .padding(.horizontal, 20)
+    }
+    #endif
+
+    // MARK: - tvOS Card (horizontal, 10-foot UI)
+
+    #if os(tvOS)
+    private var tvOSCard: some View {
+        HStack(spacing: 70) {
+            tvOSArtwork
+
+            VStack(alignment: .leading, spacing: 0) {
+                Spacer()
+
+                VStack(alignment: .leading, spacing: 14) {
+                    Text(player.nowPlaying.title)
+                        .font(.system(size: 52, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    if !player.nowPlaying.artist.isEmpty {
+                        Text(player.nowPlaying.artist)
+                            .font(.system(size: 36))
+                            .foregroundStyle(.white.opacity(0.80))
+                            .lineLimit(1)
+                    }
+                }
+
+                Spacer().frame(height: 32)
+
+                HStack(spacing: 24) {
+                    if isPlaying { LiveBadge() }
+                    statusText
+                }
+
+                Spacer().frame(height: 40)
+
+                tvOSPlayButton
+
+                Spacer()
+            }
+            .frame(maxWidth: 560)
+        }
+        .padding(.horizontal, 70)
+        .padding(.vertical, 56)
+        .background { cardBackground(cornerRadius: 44) }
+        .shadow(color: .black.opacity(0.60), radius: 70, y: 30)
+        .frame(maxWidth: 1200)
+    }
+
+    private var tvOSArtwork: some View {
+        AsyncImage(url: player.nowPlaying.artworkURL) { image in
+            image.resizable().scaledToFit()
+        } placeholder: {
+            ZStack {
+                RoundedRectangle(cornerRadius: 32, style: .continuous)
+                    .fill(Color(red: 0.004, green: 0.098, blue: 0.231))
+                Image("logo")
+                    .resizable()
+                    .scaledToFit()
+                    .padding(56)
+            }
+        }
+        .frame(width: 480, height: 480)
+        .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 32, style: .continuous)
+                .strokeBorder(
+                    LinearGradient(
+                        colors: [
+                            .white.opacity(isPlaying ? 0.55 : 0.20),
+                            .white.opacity(0.04)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 2.5
+                )
+        }
+        .shadow(
+            color: Color(red: 0.757, green: 0.184, blue: 0.212).opacity(isPlaying ? 0.75 : 0.18),
+            radius: isPlaying ? 60 : 16
+        )
+        .shadow(color: .black.opacity(0.55), radius: 30, y: 14)
+        .scaleEffect(isPlaying ? 1.03 : 1.0)
+        .animation(.spring(response: 0.6, dampingFraction: 0.75), value: isPlaying)
+    }
+
+    private var tvOSPlayButton: some View {
+        Button(action: player.togglePlayPause) {
+            Image(systemName: isPlaying ? "pause.circle.fill" : "play.circle.fill")
+                .resizable()
+                .frame(width: 110, height: 110)
+                .symbolRenderingMode(.palette)
+                .foregroundStyle(.white, Color(red: 0.757, green: 0.184, blue: 0.212))
+        }
+        .accessibilityLabel(isPlaying ? "Pause" : "Wiedergabe")
+        .animation(.spring(response: 0.35, dampingFraction: 0.70), value: isPlaying)
+    }
+    #endif
+
+    // MARK: - Shared card background
+
+    @ViewBuilder
+    private func cardBackground(cornerRadius: CGFloat) -> some View {
+        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+            .fill(.ultraThinMaterial)
+            .overlay {
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .strokeBorder(
+                        LinearGradient(
+                            colors: [.white.opacity(0.55), .white.opacity(0.04)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1.5
+                    )
+            }
+            .overlay(alignment: .top) {
+                LinearGradient(
+                    colors: [.white.opacity(0.12), .clear],
+                    startPoint: .top,
+                    endPoint: .center
+                )
+                .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+                .frame(height: 90)
+            }
     }
 
     // MARK: - Computed
@@ -93,6 +199,9 @@ struct PlayerView: View {
         player.state == .playing || player.state == .buffering
     }
 
+    // MARK: - Shared sub-views (iOS/macOS)
+
+    #if !os(tvOS)
     @ViewBuilder
     private var artwork: some View {
         AsyncImage(url: player.nowPlaying.artworkURL) { image in
@@ -109,7 +218,6 @@ struct PlayerView: View {
         }
         .frame(width: 310, height: 310)
         .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
-        // White glow ring around the artwork
         .overlay {
             RoundedRectangle(cornerRadius: 26, style: .continuous)
                 .strokeBorder(
@@ -127,16 +235,11 @@ struct PlayerView: View {
         .overlay(alignment: .bottomLeading) {
             if isPlaying { LiveBadge().padding(12) }
         }
-        // Red color glow
         .shadow(
             color: Color(red: 0.757, green: 0.184, blue: 0.212).opacity(isPlaying ? 0.75 : 0.18),
             radius: isPlaying ? 46 : 12
         )
-        // Diffuse outer halo for extra lift
-        .shadow(
-            color: .black.opacity(0.55),
-            radius: 24, y: 10
-        )
+        .shadow(color: .black.opacity(0.55), radius: 24, y: 10)
         .scaleEffect(isPlaying ? 1.04 : 1.0)
         .animation(.spring(response: 0.6, dampingFraction: 0.75), value: isPlaying)
     }
@@ -148,12 +251,13 @@ struct PlayerView: View {
                 .resizable()
                 .frame(width: 78, height: 78)
                 .symbolRenderingMode(.palette)
-                .foregroundStyle(.white, Color(red: 0.757, green: 0.184, blue: 0.212)) // #c12f36
+                .foregroundStyle(.white, Color(red: 0.757, green: 0.184, blue: 0.212))
         }
         .buttonStyle(.plain)
         .accessibilityLabel(isPlaying ? "Pause" : "Wiedergabe")
         .animation(.spring(response: 0.35, dampingFraction: 0.70), value: isPlaying)
     }
+    #endif
 
     @ViewBuilder
     private var statusText: some View {
@@ -304,7 +408,7 @@ private struct LiveBadge: View {
     var body: some View {
         HStack(spacing: 5) {
             Circle()
-                .fill(Color(red: 0.831, green: 0.0, blue: 0.188)) // #d40030
+                .fill(Color(red: 0.831, green: 0.0, blue: 0.188))
                 .frame(width: 6, height: 6)
                 .scaleEffect(pulsing ? 1.5 : 0.85)
                 .animation(.easeInOut(duration: 0.75).repeatForever(autoreverses: true), value: pulsing)
@@ -319,8 +423,9 @@ private struct LiveBadge: View {
     }
 }
 
-// MARK: - Marquee Text (seamless ticker)
+// MARK: - Marquee Text (seamless ticker, iOS/macOS only)
 
+#if !os(tvOS)
 private struct MarqueeText: View {
     let text: String
     let font: Font
@@ -329,8 +434,8 @@ private struct MarqueeText: View {
     @State private var textHeight: CGFloat = 28
     @State private var startDate: Date = .distantPast
 
-    private let gap: CGFloat = 60     // Lücke zwischen den zwei Text-Kopien
-    private let speed: Double = 30    // pt/s
+    private let gap: CGFloat = 60
+    private let speed: Double = 30
     private let pauseSeconds: Double = 1.5
 
     var body: some View {
@@ -339,7 +444,6 @@ private struct MarqueeText: View {
             let tw = textWidth
 
             if tw > cw && tw > 0 {
-                // Zwei Kopien nebeneinander → nahtloser Endlos-Loop
                 let cycle = Double(tw + gap)
                 TimelineView(.animation(minimumInterval: 1.0 / 60)) { ctx in
                     let elapsed = max(0, ctx.date.timeIntervalSince(startDate) - pauseSeconds)
@@ -357,7 +461,6 @@ private struct MarqueeText: View {
         .frame(height: max(textHeight, 20))
         .clipped()
         .background {
-            // Unsichtbare Messung der natürlichen Textbreite via onGeometryChange
             label
                 .fixedSize()
                 .hidden()
@@ -378,6 +481,7 @@ private struct MarqueeText: View {
             .fixedSize(horizontal: true, vertical: false)
     }
 }
+#endif
 
 // MARK: - Previews: Sub-Views
 
@@ -398,20 +502,3 @@ private struct MarqueeText: View {
         .padding()
         .background(.black)
 }
-
-#Preview("MarqueeText – kurz") {
-    MarqueeText(text: "Radio Wein-Welle", font: .title2.weight(.semibold))
-        .foregroundStyle(.white)
-        .padding()
-        .background(.black)
-        .frame(width: 320)
-}
-
-#Preview("MarqueeText – langer Titel") {
-    MarqueeText(text: "Eine sehr lange Titelzeile die definitiv nicht mehr in die Breite passt und scrollen muss", font: .title3)
-        .foregroundStyle(.white.opacity(0.70))
-        .padding()
-        .background(.black)
-        .frame(width: 320)
-}
-

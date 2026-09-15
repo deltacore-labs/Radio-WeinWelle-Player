@@ -1,0 +1,16 @@
+{
+  "info": {
+    "author": "xcode",
+    "version": 1
+  },
+  "images": [
+    {
+      "filename": "App Icon.imagestack",
+      "idiom": "tv"
+    },
+    {
+      "filename": "App Icon - App Store.imagestack",
+      "idiom": "tv"
+    }
+  ]
+}
