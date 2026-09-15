@@ -6,8 +6,27 @@
 	objectVersion = 110;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		390220A230592666002DD175 /* RadioStation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 390220A130592666002DD175 /* RadioStation.swift */; };
+		390220A430592668002DD175 /* NowPlayingInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 390220A330592668002DD175 /* NowPlayingInfo.swift */; };
+		390220A63059267C002DD175 /* RadioPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 390220A53059267C002DD175 /* RadioPlayer.swift */; };
+		390220A83059267E002DD175 /* PlatformImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 390220A73059267E002DD175 /* PlatformImage.swift */; };
+		390220AA30592681002DD175 /* PlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 390220A930592681002DD175 /* PlayerView.swift */; };
+		390220AC305926AD002DD175 /* WebsiteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 390220AB305926AD002DD175 /* WebsiteView.swift */; };
+		390220AE305926B1002DD175 /* LegalInfoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 390220AD305926B1002DD175 /* LegalInfoView.swift */; };
+		8ED1410D3DF146459A5238B5 /* ShazamRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8702B312EF744D4875FF4B3 /* ShazamRecognizer.swift */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		3902209130592554002DD175 /* Radio-WeinWelle-Player.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Radio-WeinWelle-Player.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		390220A130592666002DD175 /* RadioStation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadioStation.swift; sourceTree = "<group>"; };
+		390220A330592668002DD175 /* NowPlayingInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowPlayingInfo.swift; sourceTree = "<group>"; };
+		390220A53059267C002DD175 /* RadioPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadioPlayer.swift; sourceTree = "<group>"; };
+		390220A73059267E002DD175 /* PlatformImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlatformImage.swift; sourceTree = "<group>"; };
+		390220A930592681002DD175 /* PlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerView.swift; sourceTree = "<group>"; };
+		390220AB305926AD002DD175 /* WebsiteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebsiteView.swift; sourceTree = "<group>"; };
+		390220AD305926B1002DD175 /* LegalInfoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegalInfoView.swift; sourceTree = "<group>"; };
+		E8702B312EF744D4875FF4B3 /* ShazamRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShazamRecognizer.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -31,6 +50,14 @@
 			isa = PBXGroup;
 			children = (
 				3902209330592554002DD175 /* Radio-WeinWelle-Player */,
+				390220A130592666002DD175 /* RadioStation.swift */,
+				390220A330592668002DD175 /* NowPlayingInfo.swift */,
+				390220A53059267C002DD175 /* RadioPlayer.swift */,
+				390220A73059267E002DD175 /* PlatformImage.swift */,
+				390220A930592681002DD175 /* PlayerView.swift */,
+				390220AB305926AD002DD175 /* WebsiteView.swift */,
+				390220AD305926B1002DD175 /* LegalInfoView.swift */,
+				E8702B312EF744D4875FF4B3 /* ShazamRecognizer.swift */,
 				3902209230592554002DD175 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -110,6 +137,15 @@
 		3902208D30592554002DD175 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			files = (
+				8ED1410D3DF146459A5238B5 /* ShazamRecognizer.swift in Sources */,
+				390220A63059267C002DD175 /* RadioPlayer.swift in Sources */,
+				390220A83059267E002DD175 /* PlatformImage.swift in Sources */,
+				390220AA30592681002DD175 /* PlayerView.swift in Sources */,
+				390220AE305926B1002DD175 /* LegalInfoView.swift in Sources */,
+				8ED1410D3DF146459A5238B5 /* ShazamRecognizer.swift in Sources */,
+				390220AC305926AD002DD175 /* WebsiteView.swift in Sources */,
+				390220A430592668002DD175 /* NowPlayingInfo.swift in Sources */,
+				390220A230592666002DD175 /* RadioStation.swift in Sources */,
 			);
 		};
 /* End PBXSourcesBuildPhase section */
@@ -236,6 +272,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "Radio-WeinWelle-Player.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = A4HCRKN53K;
@@ -243,22 +280,15 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
-				GENERATE_INFOPLIST_FILE = YES;
-				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
-				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
-				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
-				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
-				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
-				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
-				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
-				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Radio-WeinWelle-Player";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
-				MACOSX_DEPLOYMENT_TARGET = 27.0;
-				MARKETING_VERSION = 1.0;
+				MACOSX_DEPLOYMENT_TARGET = 26.6;
+				MARKETING_VERSION = 0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = "deltacorelabs.Radio-WeinWelle-Player";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -271,7 +301,7 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";
-				XROS_DEPLOYMENT_TARGET = 27.0;
+				XROS_DEPLOYMENT_TARGET = 26.6;
 			};
 			name = Debug;
 		};
@@ -280,6 +310,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "Radio-WeinWelle-Player.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = A4HCRKN53K;
@@ -287,22 +318,15 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
-				GENERATE_INFOPLIST_FILE = YES;
-				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
-				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
-				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
-				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
-				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
-				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
-				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
-				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Radio-WeinWelle-Player";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
-				MACOSX_DEPLOYMENT_TARGET = 27.0;
-				MARKETING_VERSION = 1.0;
+				MACOSX_DEPLOYMENT_TARGET = 26.6;
+				MARKETING_VERSION = 0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = "deltacorelabs.Radio-WeinWelle-Player";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -315,7 +339,7 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";
-				XROS_DEPLOYMENT_TARGET = 27.0;
+				XROS_DEPLOYMENT_TARGET = 26.6;
 			};
 			name = Release;
 		};
