@@ -31,7 +31,7 @@ struct PlayerView: View {
         VStack(spacing: 0) {
             // Artwork floats above the glass panel (42 pt overlap)
             artwork
-                .padding(.bottom, -42)
+                .padding(.bottom, -22)
                 .zIndex(1)
 
             // Glass panel
@@ -40,11 +40,11 @@ struct PlayerView: View {
                 Spacer().frame(height: 24)
 
                 VStack(spacing: 7) {
-                    MarqueeText(text: player.nowPlaying.title, font: .title2.weight(.semibold))
+                    MarqueeText(text: player.nowPlaying.title, font: .title.weight(.semibold))
                         .foregroundStyle(.white)
                     if !player.nowPlaying.artist.isEmpty {
-                        MarqueeText(text: player.nowPlaying.artist, font: .title3)
-                            .foregroundStyle(.white.opacity(0.70))
+                        MarqueeText(text: player.nowPlaying.artist, font: .title2)
+                            .foregroundStyle(.white.opacity(0.80))
                     }
                 }
 
@@ -177,6 +177,29 @@ struct PlayerView: View {
 #Preview {
     PlayerView()
         .environment(RadioPlayer(station: .weinWelle))
+}
+
+#Preview("Spielt – mit Titel & Interpret") {
+    PlayerView()
+        .environment(RadioPlayer.makePreview())
+}
+
+#Preview("Spielt – langer Titel") {
+    PlayerView()
+        .environment(RadioPlayer.makePreview(
+            title: "Ein sehr langer Songtitel der definitiv über die Breite geht",
+            artist: "Eine sehr lange Bandbezeichnung aus dem Weinviertel"
+        ))
+}
+
+#Preview("Spielt – nur Titel, kein Interpret") {
+    PlayerView()
+        .environment(RadioPlayer.makePreview(artist: ""))
+}
+
+#Preview("Pausiert") {
+    PlayerView()
+        .environment(RadioPlayer.makePreview(state: .paused))
 }
 
 // MARK: - Animated Wine Background (floating orbs)

@@ -568,3 +568,20 @@ private struct iTunesSearchResult: Decodable {
     struct Track: Decodable { let artworkUrl100: String }
     let results: [Track]
 }
+
+// MARK: - Preview Helper
+
+#if DEBUG
+extension RadioPlayer {
+    static func makePreview(
+        title: String = "Rote Lippen soll man küssen",
+        artist: String = "Cindy & Bert",
+        state: PlaybackState = .playing
+    ) -> RadioPlayer {
+        let p = RadioPlayer(station: .weinWelle)
+        p.nowPlaying = NowPlayingInfo(title: title, artist: artist, artworkURL: nil)
+        p.state = state
+        return p
+    }
+}
+#endif
