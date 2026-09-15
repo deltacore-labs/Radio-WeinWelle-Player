@@ -571,7 +571,6 @@ private struct iTunesSearchResult: Decodable {
 
 // MARK: - Preview Helper
 
-#if DEBUG
 extension RadioPlayer {
     static func makePreview(
         title: String = "Rote Lippen soll man küssen",
@@ -584,4 +583,3 @@ extension RadioPlayer {
         return p
     }
 }
-#endif
