@@ -56,6 +56,7 @@ final class RadioPlayer: NSObject {
         nowPlaying = NowPlayingInfo(title: station.name, artist: "", artworkURL: nil)
         print("[Player] init – Station: \(station.name), Stream: \(station.streamURL)")
         configureAudioSession()
+        setupInterruptionHandling()
         if #available(iOS 27, macOS 27, *) {
             mediaSession = MediaSession(self)
             print("[Player] MediaSession (iOS 27) erstellt")
@@ -66,8 +67,9 @@ final class RadioPlayer: NSObject {
     }
 
     deinit {
-        // Tasks capture self weakly and exit when self is deallocated.
-        // statusObservation is auto-invalidated as part of deallocation.
+        #if os(iOS) || os(tvOS) || os(visionOS) || os(watchOS)
+        NotificationCenter.default.removeObserver(self)
+        #endif
     }
 
     // MARK: - Steuerung
@@ -170,17 +172,52 @@ final class RadioPlayer: NSObject {
 
     private func configureAudioSession() {
         #if os(iOS) || os(tvOS) || os(visionOS) || os(watchOS)
-        DispatchQueue.global(qos: .userInitiated).async {
-            do {
-                try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
-                try AVAudioSession.sharedInstance().setActive(true)
-                print("[Player] AudioSession → .playback, aktiv")
-            } catch {
-                print("[Player] AudioSession-Fehler: \(error)")
-            }
+        do {
+            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
+            try AVAudioSession.sharedInstance().setActive(true)
+            print("[Player] AudioSession → .playback, aktiv")
+        } catch {
+            print("[Player] AudioSession-Fehler: \(error)")
         }
         #endif
     }
+
+    private func setupInterruptionHandling() {
+        #if os(iOS) || os(tvOS) || os(visionOS) || os(watchOS)
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleInterruption(_:)),
+            name: AVAudioSession.interruptionNotification,
+            object: AVAudioSession.sharedInstance()
+        )
+        #endif
+    }
+
+    #if os(iOS) || os(tvOS) || os(visionOS) || os(watchOS)
+    @objc private nonisolated func handleInterruption(_ notification: Notification) {
+        guard let userInfo = notification.userInfo,
+              let typeValue = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
+              let type = AVAudioSession.InterruptionType(rawValue: typeValue) else { return }
+        Task { @MainActor in
+            switch type {
+            case .began:
+                print("[Player] Unterbrechung begonnen – Player pausiert")
+                if self.state == .playing || self.state == .buffering {
+                    self.state = .paused
+                }
+            case .ended:
+                let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
+                let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
+                print("[Player] Unterbrechung beendet – shouldResume: \(options.contains(.shouldResume))")
+                if options.contains(.shouldResume), self.state == .paused {
+                    self.play()
+                }
+            @unknown default:
+                break
+            }
+        }
+    }
+    #endif
 
     // MARK: - Legacy: MPRemoteCommandCenter / MPNowPlayingInfoCenter (iOS < 27)
 
