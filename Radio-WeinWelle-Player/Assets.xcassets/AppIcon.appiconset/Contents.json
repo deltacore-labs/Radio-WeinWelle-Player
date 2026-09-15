@@ -1,29 +1,7 @@
 {
   "images" : [
     {
-      "filename" : "logo 4.png",
-      "idiom" : "universal",
-      "platform" : "ios",
-      "size" : "1024x1024"
-    },
-    {
-      "appearances" : [
-        {
-          "appearance" : "luminosity",
-          "value" : "dark"
-        }
-      ],
-      "idiom" : "universal",
-      "platform" : "ios",
-      "size" : "1024x1024"
-    },
-    {
-      "appearances" : [
-        {
-          "appearance" : "luminosity",
-          "value" : "tinted"
-        }
-      ],
+      "filename" : "icon_1024.png",
       "idiom" : "universal",
       "platform" : "ios",
       "size" : "1024x1024"
@@ -31,57 +9,62 @@
     {
       "idiom" : "mac",
       "scale" : "1x",
-      "size" : "16x16"
+      "size" : "16x16",
+      "filename" : "icon_16.png"
     },
     {
       "idiom" : "mac",
       "scale" : "2x",
-      "size" : "16x16"
+      "size" : "16x16",
+      "filename" : "icon_32.png"
     },
     {
       "idiom" : "mac",
       "scale" : "1x",
-      "size" : "32x32"
+      "size" : "32x32",
+      "filename" : "icon_32.png"
     },
     {
       "idiom" : "mac",
       "scale" : "2x",
-      "size" : "32x32"
+      "size" : "32x32",
+      "filename" : "icon_64.png"
     },
     {
       "idiom" : "mac",
       "scale" : "1x",
-      "size" : "128x128"
+      "size" : "128x128",
+      "filename" : "icon_128.png"
     },
     {
-      "filename" : "logo 5.png",
       "idiom" : "mac",
       "scale" : "2x",
-      "size" : "128x128"
+      "size" : "128x128",
+      "filename" : "icon_256.png"
     },
     {
-      "filename" : "logo.png",
       "idiom" : "mac",
       "scale" : "1x",
-      "size" : "256x256"
+      "size" : "256x256",
+      "filename" : "icon_256.png"
     },
     {
-      "filename" : "logo 1.png",
       "idiom" : "mac",
       "scale" : "2x",
-      "size" : "256x256"
+      "size" : "256x256",
+      "filename" : "icon_512.png"
     },
     {
-      "filename" : "logo 2.png",
       "idiom" : "mac",
       "scale" : "1x",
-      "size" : "512x512"
+      "size" : "512x512",
+      "filename" : "icon_512.png"
     },
     {
-      "filename" : "logo 3.png",
       "idiom" : "mac",
       "scale" : "2x",
-      "size" : "512x512"
+      "size" : "512x512",
+      "filename" : "icon_1024.png"
     }
   ],
   "info" : {
