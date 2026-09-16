@@ -9,7 +9,6 @@ import MediaPlayer
 #if !os(tvOS)
 import NowPlaying
 #endif
-import ShazamKit
 import Observation
 #if canImport(UIKit)
 import UIKit
@@ -38,8 +37,6 @@ final class RadioPlayer: NSObject {
     private var statusObservation: NSKeyValueObservation?
     private var pollingTask: Task<Void, Never>?
 
-    @ObservationIgnored private var shazamRecognizer: ShazamRecognizer?
-    @ObservationIgnored private var shazamTimerTask: Task<Void, Never>?
     @ObservationIgnored private var hasStreamMetadata = false
     @ObservationIgnored private var lastArtworkKey = ""
 
@@ -104,9 +101,6 @@ final class RadioPlayer: NSObject {
         lastArtworkKey = ""
         startPolling()
         #if !os(tvOS)
-        startShazamTimerIfNeeded()
-        #endif
-        #if !os(tvOS)
         if #available(iOS 27, macOS 27, *) {
             Task {
                 try? await mediaSession?.requestToBecomeApplicationPrimary()
@@ -128,7 +122,6 @@ final class RadioPlayer: NSObject {
         state = .paused
         stopPolling()
         #if !os(tvOS)
-        stopShazam()
         if #available(iOS 27, macOS 27, *) {
             // MediaSession beobachtet state-Änderungen automatisch über @Observable
         } else {
@@ -186,9 +179,6 @@ final class RadioPlayer: NSObject {
     private func tearDownPlayer() {
         print("[Player] tearDownPlayer()")
         stopPolling()
-        #if !os(tvOS)
-        stopShazam()
-        #endif
         statusObservation = nil
         player?.pause()
         player = nil
@@ -297,62 +287,6 @@ final class RadioPlayer: NSObject {
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info
     }
 
-    // MARK: - ShazamKit (Fallback – nicht auf tvOS)
-
-    #if !os(tvOS)
-    private func startShazamTimerIfNeeded() {
-        print("[Shazam] Timer gestartet – Shazam startet in 15 s, falls kein Stream-Titel kommt")
-        shazamTimerTask?.cancel()
-        shazamTimerTask = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(15))
-            guard let self, !Task.isCancelled else {
-                print("[Shazam] Timer abgebrochen (Task cancelled oder self nil)")
-                return
-            }
-            guard !self.hasStreamMetadata else {
-                print("[Shazam] Timer abgelaufen – Stream hat Metadaten geliefert, Shazam nicht nötig")
-                return
-            }
-            guard let currentItem = self.player?.currentItem else {
-                print("[Shazam] Kein AVPlayerItem – Shazam nicht möglich")
-                return
-            }
-            print("[Shazam] Timer abgelaufen – kein Stream-Titel, starte Stream-Shazam")
-            let recognizer = ShazamRecognizer()
-            recognizer.onMatch = { [weak self] artist, title, artworkURL in
-                guard let self, !self.hasStreamMetadata else {
-                    print("[Shazam] Match ignoriert – Stream hat inzwischen Metadaten")
-                    return
-                }
-                guard self.nowPlaying.artist != artist || self.nowPlaying.title != title else {
-                    print("[Shazam] Match ignoriert – identisch mit aktuellem Titel")
-                    return
-                }
-                print("[Shazam] Match: \(artist) – \(title), Artwork: \(artworkURL?.absoluteString ?? "nil")")
-                self.nowPlaying.artist = artist
-                self.nowPlaying.title = title
-                self.nowPlaying.artworkURL = artworkURL
-                self.stopShazam()
-                Task { await self.fetchArtwork(artist: artist, title: title) }
-                if #available(iOS 27, macOS 27, *) {} else {
-                    self.updateNowPlayingCenterLegacy()
-                }
-            }
-            self.shazamRecognizer = recognizer
-            recognizer.start(with: currentItem)
-        }
-    }
-
-    private func stopShazam() {
-        guard shazamRecognizer != nil || shazamTimerTask != nil else { return }
-        print("[Shazam] stopShazam()")
-        shazamTimerTask?.cancel()
-        shazamTimerTask = nil
-        shazamRecognizer?.stop()
-        shazamRecognizer = nil
-    }
-    #endif
-
     // MARK: - iTunes Cover-Art-Lookup
 
     private func fetchArtwork(artist: String, title: String) async {
@@ -430,6 +364,9 @@ final class RadioPlayer: NSObject {
 
         guard let rawTitle = source?.title, !rawTitle.isEmpty else {
             print("[Icecast] Kein Titel in der API-Antwort (listenurl: \(source?.listenurl ?? "nil"))")
+            if !hasStreamMetadata {
+                await fetchPlaylistMetadata()
+            }
             return
         }
 
@@ -454,9 +391,6 @@ final class RadioPlayer: NSObject {
         nowPlaying.artist = artist
         nowPlaying.title = songTitle
         hasStreamMetadata = true
-        #if !os(tvOS)
-        stopShazam()
-        #endif
         await fetchArtwork(artist: nowPlaying.artist, title: nowPlaying.title)
         #if !os(tvOS)
         if #available(iOS 27, macOS 27, *) {
@@ -464,6 +398,39 @@ final class RadioPlayer: NSObject {
         } else {
             updateNowPlayingCenterLegacy()
         }
+        #else
+        updateNowPlayingCenterLegacy()
+        #endif
+    }
+
+    // MARK: - Playlist-Scraping (Fallback)
+
+    private func fetchPlaylistMetadata() async {
+        guard let url = station.playlistURL else { return }
+        print("[Playlist] Hole Fallback-Metadaten von \(url)")
+        guard let (data, _) = try? await URLSession.shared.data(from: url),
+              let html = String(data: data, encoding: .utf8) else {
+            print("[Playlist] Netzwerkfehler oder ungültiges HTML")
+            return
+        }
+        guard let titleMatch = html.firstMatch(of: /<h3>(.*?)<\/h3>/),
+              let artistMatch = html.firstMatch(of: /<h4>von\s+(.*?)<\/h4>/) else {
+            print("[Playlist] Kein Titel-/Künstlereintrag gefunden")
+            return
+        }
+        let title = String(titleMatch.1).trimmingCharacters(in: .whitespaces)
+        let artist = String(artistMatch.1).trimmingCharacters(in: .whitespaces)
+        guard !title.isEmpty, !artist.isEmpty else { return }
+        guard nowPlaying.artist != artist || nowPlaying.title != title else {
+            print("[Playlist] Identisch mit aktuellem Titel – ignoriert")
+            return
+        }
+        print("[Playlist] Titel erkannt: \(artist) – \(title)")
+        nowPlaying.artist = artist
+        nowPlaying.title = title
+        await fetchArtwork(artist: artist, title: title)
+        #if !os(tvOS)
+        if #available(iOS 27, macOS 27, *) {} else { updateNowPlayingCenterLegacy() }
         #else
         updateNowPlayingCenterLegacy()
         #endif
@@ -577,9 +544,6 @@ extension RadioPlayer: AVPlayerItemMetadataOutputPushDelegate {
                     self.nowPlaying.artist = artist
                     self.nowPlaying.title = songTitle
                     self.hasStreamMetadata = true
-                    #if !os(tvOS)
-                    self.stopShazam()
-                    #endif
                     await self.fetchArtwork(artist: artist, title: songTitle)
                     #if !os(tvOS)
                     if #available(iOS 27, macOS 27, *) {

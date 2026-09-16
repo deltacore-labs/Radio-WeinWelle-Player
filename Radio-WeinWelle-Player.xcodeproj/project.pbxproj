@@ -14,7 +14,7 @@
 		390220AA30592681002DD175 /* PlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 390220A930592681002DD175 /* PlayerView.swift */; };
 		390220AC305926AD002DD175 /* WebsiteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 390220AB305926AD002DD175 /* WebsiteView.swift */; };
 		390220AE305926B1002DD175 /* LegalInfoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 390220AD305926B1002DD175 /* LegalInfoView.swift */; };
-		8ED1410D3DF146459A5238B5 /* ShazamRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8702B312EF744D4875FF4B3 /* ShazamRecognizer.swift */; };
+		390220B1305926C1002DD175 /* YouTubeLiveChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 390220B0305926C1002DD175 /* YouTubeLiveChecker.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -26,7 +26,7 @@
 		390220A930592681002DD175 /* PlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerView.swift; sourceTree = "<group>"; };
 		390220AB305926AD002DD175 /* WebsiteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebsiteView.swift; sourceTree = "<group>"; };
 		390220AD305926B1002DD175 /* LegalInfoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegalInfoView.swift; sourceTree = "<group>"; };
-		E8702B312EF744D4875FF4B3 /* ShazamRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShazamRecognizer.swift; sourceTree = "<group>"; };
+		390220B0305926C1002DD175 /* YouTubeLiveChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YouTubeLiveChecker.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -57,7 +57,7 @@
 				390220A930592681002DD175 /* PlayerView.swift */,
 				390220AB305926AD002DD175 /* WebsiteView.swift */,
 				390220AD305926B1002DD175 /* LegalInfoView.swift */,
-				E8702B312EF744D4875FF4B3 /* ShazamRecognizer.swift */,
+				390220B0305926C1002DD175 /* YouTubeLiveChecker.swift */,
 				3902209230592554002DD175 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -137,15 +137,14 @@
 		3902208D30592554002DD175 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			files = (
-				8ED1410D3DF146459A5238B5 /* ShazamRecognizer.swift in Sources */,
 				390220A63059267C002DD175 /* RadioPlayer.swift in Sources */,
 				390220A83059267E002DD175 /* PlatformImage.swift in Sources */,
 				390220AA30592681002DD175 /* PlayerView.swift in Sources */,
 				390220AE305926B1002DD175 /* LegalInfoView.swift in Sources */,
-				8ED1410D3DF146459A5238B5 /* ShazamRecognizer.swift in Sources */,
 				390220AC305926AD002DD175 /* WebsiteView.swift in Sources */,
 				390220A430592668002DD175 /* NowPlayingInfo.swift in Sources */,
 				390220A230592666002DD175 /* RadioStation.swift in Sources */,
+				390220B1305926C1002DD175 /* YouTubeLiveChecker.swift in Sources */,
 			);
 		};
 /* End PBXSourcesBuildPhase section */
