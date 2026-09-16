@@ -7,6 +7,7 @@ struct YouTubeLiveView: View {
 
     private let channelURL = URL(string: "https://www.youtube.com/@RadioWeinWelle/streams")!
     private let embedURL  = URL(string: "https://www.youtube-nocookie.com/embed/live_stream?channel=UClyAqSF-AdlRUerBG4HZf9w&autoplay=1&playsinline=1&rel=0")!
+    @State private var isRefreshing = false
 
     var body: some View {
         ZStack {
@@ -20,13 +21,19 @@ struct YouTubeLiveView: View {
             }
         }
         .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
+            ToolbarItem(placement: .topBarTrailing) {
                 Button {
-                    Task { await checker.checkLiveStatus() }
+                    guard !isRefreshing else { return }
+                    isRefreshing = true
+                    Task {
+                        await checker.checkLiveStatus()
+                        isRefreshing = false
+                    }
                 } label: {
                     Image(systemName: "arrow.clockwise")
                 }
                 .tint(.white)
+                .disabled(isRefreshing)
             }
         }
     }
@@ -101,6 +108,7 @@ extension YouTubeWebView: NSViewRepresentable {
         let config = WKWebViewConfiguration()
         config.mediaTypesRequiringUserActionForPlayback = []
         let webView = WKWebView(frame: .zero, configuration: config)
+        webView.setValue(false, forKey: "drawsBackground")
         return webView
     }
 
