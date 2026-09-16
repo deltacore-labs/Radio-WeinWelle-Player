@@ -15,6 +15,7 @@
 		390220AC305926AD002DD175 /* WebsiteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 390220AB305926AD002DD175 /* WebsiteView.swift */; };
 		390220AE305926B1002DD175 /* LegalInfoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 390220AD305926B1002DD175 /* LegalInfoView.swift */; };
 		390220B1305926C1002DD175 /* YouTubeLiveChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 390220B0305926C1002DD175 /* YouTubeLiveChecker.swift */; };
+		390220B3305926C1002DD175 /* YouTubeLiveView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 390220B2305926C1002DD175 /* YouTubeLiveView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -27,6 +28,7 @@
 		390220AB305926AD002DD175 /* WebsiteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebsiteView.swift; sourceTree = "<group>"; };
 		390220AD305926B1002DD175 /* LegalInfoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegalInfoView.swift; sourceTree = "<group>"; };
 		390220B0305926C1002DD175 /* YouTubeLiveChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YouTubeLiveChecker.swift; sourceTree = "<group>"; };
+		390220B2305926C1002DD175 /* YouTubeLiveView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YouTubeLiveView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -58,6 +60,7 @@
 				390220AB305926AD002DD175 /* WebsiteView.swift */,
 				390220AD305926B1002DD175 /* LegalInfoView.swift */,
 				390220B0305926C1002DD175 /* YouTubeLiveChecker.swift */,
+				390220B2305926C1002DD175 /* YouTubeLiveView.swift */,
 				3902209230592554002DD175 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -145,6 +148,7 @@
 				390220A430592668002DD175 /* NowPlayingInfo.swift in Sources */,
 				390220A230592666002DD175 /* RadioStation.swift in Sources */,
 				390220B1305926C1002DD175 /* YouTubeLiveChecker.swift in Sources */,
+				390220B3305926C1002DD175 /* YouTubeLiveView.swift in Sources */,
 			);
 		};
 /* End PBXSourcesBuildPhase section */
