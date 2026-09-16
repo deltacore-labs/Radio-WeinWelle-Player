@@ -16,6 +16,13 @@ import UIKit
 import AppKit
 #endif
 
+@inline(__always) private func log(_ message: @autoclosure () -> String) {
+    #if DEBUG
+    let ts = DateFormatter.localizedString(from: Date(), dateStyle: .none, timeStyle: .medium)
+    print("[\(ts)] \(message())")
+    #endif
+}
+
 @MainActor
 @Observable
 final class RadioPlayer: NSObject {
@@ -36,9 +43,14 @@ final class RadioPlayer: NSObject {
     private var metadataOutput: AVPlayerItemMetadataOutput?
     private var statusObservation: NSKeyValueObservation?
     private var pollingTask: Task<Void, Never>?
+    private var artworkTask: Task<Void, Never>?
 
     @ObservationIgnored private var hasStreamMetadata = false
     @ObservationIgnored private var lastArtworkKey = ""
+    // URL?? outer nil = never loaded; .some(nil) = logo shown; .some(url) = url artwork shown
+    @ObservationIgnored private var lastLegacyArtworkURL: URL?? = .none
+    @ObservationIgnored private var songStartDate: Date? = nil
+    @ObservationIgnored private var currentTrackDuration: TimeInterval? = nil
 
     #if !os(tvOS)
     @ObservationIgnored private var _mediaSession: AnyObject?
@@ -55,20 +67,19 @@ final class RadioPlayer: NSObject {
         self.id = station.id.uuidString
         super.init()
         nowPlaying = NowPlayingInfo(title: station.name, artist: "", artworkURL: nil)
-        print("[Player] init – Station: \(station.name), Stream: \(station.streamURL)")
-        configureAudioSession()
+        log("[Player] init – Station: \(station.name), Stream: \(station.streamURL)")
         setupInterruptionHandling()
         #if !os(tvOS)
         if #available(iOS 27, macOS 27, *) {
             mediaSession = MediaSession(self)
-            print("[Player] MediaSession (iOS 27) erstellt")
+            log("[Player] MediaSession (iOS 27) erstellt")
         } else {
             configureRemoteCommandsLegacy()
-            print("[Player] Legacy-RemoteCommands konfiguriert")
+            log("[Player] Legacy-RemoteCommands konfiguriert")
         }
         #else
         configureRemoteCommandsLegacy()
-        print("[Player] Legacy-RemoteCommands konfiguriert (tvOS)")
+        log("[Player] Legacy-RemoteCommands konfiguriert (tvOS)")
         #endif
     }
 
@@ -90,15 +101,16 @@ final class RadioPlayer: NSObject {
     }
 
     func play() {
-        print("[Player] play() – aktueller State: \(state)")
+        log("[Player] play() – aktueller State: \(state)")
         if case .failed = state { tearDownPlayer() }
         configureAudioSession()
         if player == nil { setUpPlayer() }
         player?.play()
         state = player?.currentItem?.status == .readyToPlay ? .playing : .buffering
-        print("[Player] State nach play(): \(state)")
+        log("[Player] State nach play(): \(state)")
         hasStreamMetadata = false
         lastArtworkKey = ""
+        lastLegacyArtworkURL = .none
         startPolling()
         #if !os(tvOS)
         if #available(iOS 27, macOS 27, *) {
@@ -117,7 +129,7 @@ final class RadioPlayer: NSObject {
     }
 
     func pause() {
-        print("[Player] pause()")
+        log("[Player] pause()")
         player?.pause()
         state = .paused
         stopPolling()
@@ -135,7 +147,7 @@ final class RadioPlayer: NSObject {
     // MARK: - Player-Setup
 
     private func setUpPlayer() {
-        print("[Player] AVPlayer wird aufgebaut – URL: \(station.streamURL)")
+        log("[Player] AVPlayer wird aufgebaut – URL: \(station.streamURL)")
         let item = AVPlayerItem(url: station.streamURL)
 
         let output = AVPlayerItemMetadataOutput(identifiers: nil)
@@ -149,9 +161,8 @@ final class RadioPlayer: NSObject {
                 switch item.status {
                 case .readyToPlay:
                     guard case .buffering = self.state else { break }
-                    self.player?.play()
                     self.state = .playing
-                    print("[Player] AVPlayerItem readyToPlay → state = .playing")
+                    log("[Player] AVPlayerItem readyToPlay → state = .playing")
                     #if !os(tvOS)
                     if #available(iOS 27, macOS 27, *) {
                         // automatisch
@@ -163,7 +174,7 @@ final class RadioPlayer: NSObject {
                     #endif
                 case .failed:
                     let msg = item.error?.localizedDescription ?? "Unbekannter Fehler"
-                    print("[Player] AVPlayerItem failed: \(msg)")
+                    log("[Player] AVPlayerItem failed: \(msg)")
                     self.state = .failed(msg)
                 default:
                     break
@@ -172,27 +183,32 @@ final class RadioPlayer: NSObject {
         }
 
         let avPlayer = AVPlayer(playerItem: item)
-        avPlayer.automaticallyWaitsToMinimizeStalling = false
         self.player = avPlayer
     }
 
     private func tearDownPlayer() {
-        print("[Player] tearDownPlayer()")
+        log("[Player] tearDownPlayer()")
         stopPolling()
+        artworkTask?.cancel()
+        artworkTask = nil
         statusObservation = nil
         player?.pause()
         player = nil
         metadataOutput = nil
+        songStartDate = nil
+        currentTrackDuration = nil
     }
 
     private func configureAudioSession() {
         #if os(iOS) || os(tvOS) || os(visionOS) || os(watchOS)
-        do {
-            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
-            try AVAudioSession.sharedInstance().setActive(true)
-            print("[Player] AudioSession → .playback, aktiv")
-        } catch {
-            print("[Player] AudioSession-Fehler: \(error)")
+        DispatchQueue.global(qos: .userInitiated).async {
+            do {
+                try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
+                try AVAudioSession.sharedInstance().setActive(true)
+                log("[Player] AudioSession → .playback, aktiv")
+            } catch {
+                log("[Player] AudioSession-Fehler: \(error)")
+            }
         }
         #endif
     }
@@ -216,14 +232,15 @@ final class RadioPlayer: NSObject {
         Task { @MainActor in
             switch type {
             case .began:
-                print("[Player] Unterbrechung begonnen – Player pausiert")
+                log("[Player] Unterbrechung begonnen – Player pausiert")
                 if self.state == .playing || self.state == .buffering {
+                    self.stopPolling()
                     self.state = .paused
                 }
             case .ended:
                 let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
                 let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
-                print("[Player] Unterbrechung beendet – shouldResume: \(options.contains(.shouldResume))")
+                log("[Player] Unterbrechung beendet – shouldResume: \(options.contains(.shouldResume))")
                 if options.contains(.shouldResume), self.state == .paused {
                     self.play()
                 }
@@ -254,28 +271,35 @@ final class RadioPlayer: NSObject {
 
     private func updateNowPlayingCenterLegacy() {
         let isActive = state == .playing || state == .buffering
-        let info: [String: Any] = [
-            MPMediaItemPropertyTitle: nowPlaying.title,
-            MPMediaItemPropertyArtist: nowPlaying.artist,
-            MPNowPlayingInfoPropertyIsLiveStream: true,
-            MPNowPlayingInfoPropertyPlaybackRate: isActive ? 1.0 : 0.0,
-            MPNowPlayingInfoPropertyElapsedPlaybackTime: 0
-        ]
+        var info = MPNowPlayingInfoCenter.default().nowPlayingInfo ?? [:]
+        info[MPMediaItemPropertyTitle] = nowPlaying.title
+        info[MPMediaItemPropertyArtist] = nowPlaying.artist
+        info[MPNowPlayingInfoPropertyIsLiveStream] = true
+        info[MPNowPlayingInfoPropertyPlaybackRate] = isActive ? 1.0 : 0.0
+        info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = 0
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info
-        loadArtworkLegacy()
+        loadArtworkLegacyIfNeeded()
     }
 
-    private func loadArtworkLegacy() {
-        if let url = nowPlaying.artworkURL {
-            Task {
-                if let (data, _) = try? await URLSession.shared.data(from: url),
-                   let image = PlatformImage(data: data) {
-                    setArtworkLegacy(image)
-                }
+    private func loadArtworkLegacyIfNeeded() {
+        let artworkURL: URL? = nowPlaying.artworkURL
+        let newState: URL?? = artworkURL  // URL? wrapped to URL?? (.some(nil) != outer .none)
+        guard newState != lastLegacyArtworkURL else { return }
+        lastLegacyArtworkURL = newState
+        artworkTask?.cancel()
+        if let url = artworkURL {
+            artworkTask = Task { [weak self] in
+                guard let (data, _) = try? await URLSession.shared.data(from: url),
+                      let self,
+                      let image = PlatformImage(data: data),
+                      self.lastLegacyArtworkURL == newState else { return }
+                setArtworkLegacy(image)
             }
         } else {
             #if canImport(UIKit)
             if let image = UIImage(named: "logo") { setArtworkLegacy(image) }
+            #elseif canImport(AppKit)
+            if let image = NSImage(named: "logo") { setArtworkLegacy(image) }
             #endif
         }
     }
@@ -293,19 +317,28 @@ final class RadioPlayer: NSObject {
         let key = "\(artist)|\(title)"
         guard !artist.isEmpty, !title.isEmpty, key != lastArtworkKey else { return }
         lastArtworkKey = key
+        songStartDate = Date()
+        currentTrackDuration = nil
         let query = "\(artist) \(title)"
             .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
         let urlStr = "https://itunes.apple.com/search?term=\(query)&media=music&limit=1&country=DE"
-        print("[iTunes] Artwork-Suche: \(artist) – \(title)")
+        log("[iTunes] Artwork-Suche: \(artist) – \(title)")
         guard let url = URL(string: urlStr),
               let (data, _) = try? await URLSession.shared.data(from: url),
               let result = try? JSONDecoder().decode(iTunesSearchResult.self, from: data),
               let track = result.results.first else {
-            print("[iTunes] Kein Artwork-Ergebnis gefunden")
+            log("[iTunes] Kein Artwork-Ergebnis gefunden – nächste Poll-Runde versucht es erneut")
+            lastArtworkKey = ""
             return
         }
         let highRes = track.artworkUrl100.replacingOccurrences(of: "100x100bb", with: "600x600bb")
-        print("[iTunes] Artwork gefunden: \(highRes)")
+        let coverFound = URL(string: highRes) != nil
+        if let ms = track.trackTimeMillis {
+            currentTrackDuration = Double(ms) / 1000.0
+            log("[iTunes] Cover: \(coverFound ? "JA" : "NEIN") | Dauer: \(ms / 1000)s (\(String(format: "%.1f", Double(ms) / 60000.0)) min)")
+        } else {
+            log("[iTunes] Cover: \(coverFound ? "JA" : "NEIN") | Dauer: unbekannt")
+        }
         nowPlaying.artworkURL = URL(string: highRes)
         #if !os(tvOS)
         if #available(iOS 27, macOS 27, *) {} else {
@@ -320,40 +353,53 @@ final class RadioPlayer: NSObject {
 
     private func startPolling() {
         guard station.nowPlayingURL != nil else {
-            print("[Icecast] Kein nowPlayingURL konfiguriert – Polling deaktiviert")
+            log("[Icecast] Kein nowPlayingURL konfiguriert – Polling deaktiviert")
             return
         }
-        print("[Icecast] Polling gestartet (alle 15 s) → \(station.nowPlayingURL!)")
+        log("[Icecast] Polling gestartet (alle 15 s) → \(station.nowPlayingURL!)")
         pollingTask?.cancel()
         pollingTask = Task { [weak self] in
             while !Task.isCancelled {
                 guard let self else { return }
                 await self.fetchIcecastMetadata()
-                try? await Task.sleep(for: .seconds(15))
+                let interval = self.nextPollingInterval()
+                try? await Task.sleep(for: interval)
             }
-            print("[Icecast] Polling-Task beendet")
+            log("[Icecast] Polling-Task beendet")
         }
     }
 
     private func stopPolling() {
-        guard pollingTask != nil else { return }
-        print("[Icecast] Polling gestoppt")
+        log("[Icecast] Polling gestoppt")
         pollingTask?.cancel()
         pollingTask = nil
     }
 
+    private func nextPollingInterval() -> Duration {
+        if let start = songStartDate, let duration = currentTrackDuration {
+            let elapsed = Date().timeIntervalSince(start)
+            let remaining = duration - elapsed
+            // Sicherheitsnetz: Song läuft > 60s über die erwartete Dauer → wieder langsam
+            if elapsed < duration + 60 {
+                if remaining < 20 { return .seconds(4) }
+                if remaining < 45 { return .seconds(10) }
+            }
+        }
+        return .seconds(15)
+    }
+
     private func fetchIcecastMetadata() async {
         guard let apiURL = station.nowPlayingURL else { return }
-        print("[Icecast] Hole Metadaten von \(apiURL)")
+        log("[Icecast] Hole Metadaten von \(apiURL)")
         guard let (data, _) = try? await URLSession.shared.data(from: apiURL) else {
             if !Task.isCancelled {
-                print("[Icecast] Netzwerkfehler – keine Antwort")
+                log("[Icecast] Netzwerkfehler – keine Antwort")
             }
             return
         }
         guard let status = try? JSONDecoder().decode(IcecastStatus.self, from: data) else {
             let raw = String(data: data, encoding: .utf8)?.prefix(200) ?? "<leer>"
-            print("[Icecast] JSON-Decode fehlgeschlagen. Antwort: \(raw)")
+            log("[Icecast] JSON-Decode fehlgeschlagen. Antwort: \(raw)")
             return
         }
 
@@ -363,7 +409,7 @@ final class RadioPlayer: NSObject {
         } ?? status.icestats.source?.first
 
         guard let rawTitle = source?.title, !rawTitle.isEmpty else {
-            print("[Icecast] Kein Titel in der API-Antwort (listenurl: \(source?.listenurl ?? "nil"))")
+            log("[Icecast] Kein Titel in der API-Antwort (listenurl: \(source?.listenurl ?? "nil"))")
             if !hasStreamMetadata {
                 await fetchPlaylistMetadata()
             }
@@ -371,11 +417,12 @@ final class RadioPlayer: NSObject {
         }
 
         let decoded = fixEncoding(rawTitle)
-        print("[Icecast] Rohtitel: \"\(rawTitle)\" → dekodiert: \"\(decoded)\"")
+        log("[Icecast] Rohtitel: \"\(rawTitle)\" → dekodiert: \"\(decoded)\"")
 
         let parts = decoded.components(separatedBy: " - ")
         guard parts.count >= 2 else {
-            print("[Icecast] Kein Trennzeichen ' - ' im Titel – kein Song-Metadatum")
+            log("[Icecast] Kein Trennzeichen ' - ' im Titel – kein Song-Metadatum")
+            if !hasStreamMetadata { await fetchPlaylistMetadata() }
             return
         }
 
@@ -383,11 +430,12 @@ final class RadioPlayer: NSObject {
         let songTitle = parts[1...].joined(separator: " - ")
 
         guard artist.caseInsensitiveCompare(station.name) != .orderedSame else {
-            print("[Icecast] Promo-Text erkannt (Künstler = Sendername '\(artist)') – ignoriert")
+            log("[Icecast] Promo-Text erkannt (Künstler = Sendername '\(artist)') – ignoriert")
+            if !hasStreamMetadata { await fetchPlaylistMetadata() }
             return
         }
 
-        print("[Icecast] Song erkannt: \(artist) – \(songTitle)")
+        log("[Icecast] Song erkannt: \(artist) – \(songTitle)")
         nowPlaying.artist = artist
         nowPlaying.title = songTitle
         hasStreamMetadata = true
@@ -407,26 +455,26 @@ final class RadioPlayer: NSObject {
 
     private func fetchPlaylistMetadata() async {
         guard let url = station.playlistURL else { return }
-        print("[Playlist] Hole Fallback-Metadaten von \(url)")
+        log("[Playlist] Hole Fallback-Metadaten von \(url)")
         var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData)
         request.setValue("no-cache", forHTTPHeaderField: "Cache-Control")
         guard let (data, _) = try? await URLSession.shared.data(for: request),
               let html = String(data: data, encoding: .utf8) else {
-            print("[Playlist] Netzwerkfehler oder ungültiges HTML")
+            log("[Playlist] Netzwerkfehler oder ungültiges HTML")
             return
         }
         guard let match = html.firstMatch(of: /(?s)list-item-big.*?<h1>\s*(.*?)\s*<\/h1>.*?<h2>von\s+(.*?)\s*<\/h2>/) else {
-            print("[Playlist] Kein Titel-/Künstlereintrag gefunden")
+            log("[Playlist] Kein Titel-/Künstlereintrag gefunden")
             return
         }
         let title = String(match.1).trimmingCharacters(in: .whitespaces)
         let artist = String(match.2).trimmingCharacters(in: .whitespaces)
         guard !title.isEmpty, !artist.isEmpty else { return }
         guard nowPlaying.artist != artist || nowPlaying.title != title else {
-            print("[Playlist] Identisch mit aktuellem Titel – ignoriert")
+            log("[Playlist] Identisch mit aktuellem Titel – ignoriert")
             return
         }
-        print("[Playlist] Titel erkannt: \(artist) – \(title)")
+        log("[Playlist] Titel erkannt: \(artist) – \(title)")
         nowPlaying.artist = artist
         nowPlaying.title = title
         await fetchArtwork(artist: artist, title: title)
@@ -526,22 +574,23 @@ extension RadioPlayer: AVPlayerItemMetadataOutputPushDelegate {
             for meta in items {
                 if let value = try? await meta.load(.stringValue) {
                     let fixed = fixEncoding(value)
-                    print("[ICY] Stream-Metadatum empfangen: \"\(fixed)\"")
+                    log("[ICY] Stream-Metadatum empfangen: \"\(fixed)\"")
 
                     let parts = fixed.components(separatedBy: " - ")
                     guard parts.count >= 2 else {
-                        print("[ICY] Kein Trennzeichen ' - ' – ignoriert")
+                        log("[ICY] Kein Trennzeichen ' - ' – ignoriert")
                         continue
                     }
                     let artist = parts[0]
                     let songTitle = parts[1...].joined(separator: " - ")
 
                     guard artist.caseInsensitiveCompare(self.station.name) != .orderedSame else {
-                        print("[ICY] Promo-Text erkannt (Künstler = Sendername '\(artist)') – ignoriert")
+                        log("[ICY] Promo-Text erkannt (Künstler = Sendername '\(artist)') – ignoriert")
+                        if !self.hasStreamMetadata { await self.fetchPlaylistMetadata() }
                         continue
                     }
 
-                    print("[ICY] Song gesetzt: \(artist) – \(songTitle)")
+                    log("[ICY] Song gesetzt: \(artist) – \(songTitle)")
                     self.nowPlaying.artist = artist
                     self.nowPlaying.title = songTitle
                     self.hasStreamMetadata = true
@@ -575,7 +624,10 @@ private struct IcecastStatus: Decodable {
 }
 
 private struct iTunesSearchResult: Decodable {
-    struct Track: Decodable { let artworkUrl100: String }
+    struct Track: Decodable {
+        let artworkUrl100: String
+        let trackTimeMillis: Int?
+    }
     let results: [Track]
 }
 
@@ -585,10 +637,11 @@ extension RadioPlayer {
     static func makePreview(
         title: String = "Rote Lippen soll man küssen",
         artist: String = "Cindy & Bert",
-        state: PlaybackState = .playing
+        state: PlaybackState = .playing,
+        artworkURL: URL? = nil
     ) -> RadioPlayer {
         let p = RadioPlayer(station: .weinWelle)
-        p.nowPlaying = NowPlayingInfo(title: title, artist: artist, artworkURL: nil)
+        p.nowPlaying = NowPlayingInfo(title: title, artist: artist, artworkURL: artworkURL)
         p.state = state
         return p
     }

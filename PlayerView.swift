@@ -44,26 +44,36 @@ struct PlayerView: View {
                 Spacer().frame(height: 24)
 
                 VStack(spacing: 7) {
-                    MarqueeText(text: player.nowPlaying.title, font: .title.weight(.semibold))
+                    MarqueeText(text: player.nowPlaying.title, font: .title.weight(.semibold), isPlaying: isPlaying)
                         .foregroundStyle(.white)
                     if !player.nowPlaying.artist.isEmpty {
-                        MarqueeText(text: player.nowPlaying.artist, font: .title2)
+                        MarqueeText(text: player.nowPlaying.artist, font: .title2, isPlaying: isPlaying)
                             .foregroundStyle(.white.opacity(0.80))
                     }
                 }
 
-                statusText
+                if case .buffering = player.state {
+                    HStack(spacing: 8) {
+                        ProgressView().tint(.white)
+                        Text("Verbinde …").foregroundStyle(.white.opacity(0.70))
+                    }
+                } else if case .failed(let message) = player.state {
+                    Text(message)
+                        .font(.footnote)
+                        .foregroundStyle(.red.opacity(0.85))
+                        .multilineTextAlignment(.center)
+                }
 
                 playButton
             }
             .padding(.bottom, 32)
             .padding(.horizontal, 28)
             .background { cardBackground(cornerRadius: 36) }
-            .shadow(color: .black.opacity(0.55), radius: 40, y: 20)
+            .shadow(color: .black.opacity(0.55), radius: 16, y: 14)
             .zIndex(0)
         }
         .frame(maxWidth: 480)
-        .padding(.horizontal, 20)
+        .padding(.horizontal, 28)
     }
     #endif
 
@@ -237,7 +247,7 @@ struct PlayerView: View {
         }
         .shadow(
             color: Color(red: 0.757, green: 0.184, blue: 0.212).opacity(isPlaying ? 0.75 : 0.18),
-            radius: isPlaying ? 46 : 12
+            radius: isPlaying ? 22 : 12
         )
         .shadow(color: .black.opacity(0.55), radius: 24, y: 10)
         .scaleEffect(isPlaying ? 1.04 : 1.0)
@@ -306,11 +316,27 @@ struct PlayerView: View {
         .environment(RadioPlayer.makePreview(state: .paused))
 }
 
+#Preview("Spielt – mit Albumcover") {
+    PlayerView()
+        .environment(RadioPlayer.makePreview(
+            artworkURL: URL(string: "https://picsum.photos/seed/weinwelle/600/600")
+        ))
+}
+
+#Preview("Pausiert – mit Albumcover") {
+    PlayerView()
+        .environment(RadioPlayer.makePreview(
+            state: .paused,
+            artworkURL: URL(string: "https://picsum.photos/seed/weinwelle/600/600")
+        ))
+}
+
 // MARK: - Animated Wine Background (floating orbs)
 
 private struct WeinBackground: View {
     let isPlaying: Bool
     @State private var liveOpacity: Double = 0
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         ZStack {
@@ -324,7 +350,7 @@ private struct WeinBackground: View {
                 endPoint: .bottomTrailing
             )
 
-            TimelineView(.animation(minimumInterval: 1.0 / 24, paused: !isPlaying)) { ctx in
+            TimelineView(.animation(minimumInterval: 1.0 / 15, paused: !isPlaying || scenePhase != .active)) { ctx in
                 let t = ctx.date.timeIntervalSinceReferenceDate
                 GeometryReader { geo in
                     let w = geo.size.width
@@ -429,6 +455,7 @@ private struct LiveBadge: View {
 private struct MarqueeText: View {
     let text: String
     let font: Font
+    var isPlaying: Bool = true
 
     @State private var textWidth: CGFloat = 0
     @State private var textHeight: CGFloat = 28
@@ -445,7 +472,7 @@ private struct MarqueeText: View {
 
             if tw > cw && tw > 0 {
                 let cycle = Double(tw + gap)
-                TimelineView(.animation(minimumInterval: 1.0 / 60)) { ctx in
+                TimelineView(.animation(minimumInterval: 1.0 / 30, paused: !isPlaying)) { ctx in
                     let elapsed = max(0, ctx.date.timeIntervalSince(startDate) - pauseSeconds)
                     let phase = CGFloat((elapsed * speed).truncatingRemainder(dividingBy: cycle))
                     HStack(spacing: gap) {

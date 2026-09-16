@@ -8,22 +8,24 @@ struct YouTubeLiveView: View {
     private let channelURL = URL(string: "https://www.youtube.com/@RadioWeinWelle/streams")!
     private let embedURL  = URL(string: "https://www.youtube-nocookie.com/embed/live_stream?channel=UClyAqSF-AdlRUerBG4HZf9w&autoplay=1&playsinline=1&rel=0")!
     @State private var isRefreshing = false
+    @State private var webViewPaused = false
 
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
 
             if checker.isLive {
-                YouTubeWebView(url: embedURL)
+                YouTubeWebView(url: embedURL, isPaused: $webViewPaused)
                     .ignoresSafeArea(edges: .bottom)
+                    .onAppear { webViewPaused = false }
             } else {
                 noLivePlaceholder
             }
         }
+        .onDisappear { webViewPaused = true }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
-                    guard !isRefreshing else { return }
                     isRefreshing = true
                     Task {
                         await checker.checkLiveStatus()
@@ -81,6 +83,7 @@ struct YouTubeLiveView: View {
 /// Plattformübergreifender WKWebView-Wrapper für YouTube-Embeds.
 private struct YouTubeWebView {
     let url: URL
+    @Binding var isPaused: Bool
 }
 
 #if canImport(UIKit)
@@ -99,6 +102,7 @@ extension YouTubeWebView: UIViewRepresentable {
 
     func updateUIView(_ webView: WKWebView, context: Context) {
         if webView.url != url { webView.load(URLRequest(url: url)) }
+        if isPaused { webView.pauseAllMediaPlayback { } }
     }
 }
 #elseif canImport(AppKit)
@@ -108,12 +112,13 @@ extension YouTubeWebView: NSViewRepresentable {
         let config = WKWebViewConfiguration()
         config.mediaTypesRequiringUserActionForPlayback = []
         let webView = WKWebView(frame: .zero, configuration: config)
-        webView.setValue(false, forKey: "drawsBackground")
+        webView.drawsBackground = false
         return webView
     }
 
     func updateNSView(_ webView: WKWebView, context: Context) {
         if webView.url != url { webView.load(URLRequest(url: url)) }
+        if isPaused { webView.pauseAllMediaPlayback { } }
     }
 }
 #endif
