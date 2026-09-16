@@ -30,7 +30,11 @@ struct ContentView: View {
         .task {
             await liveChecker.checkLiveStatus()
             while !Task.isCancelled {
-                try await Task.sleep(for: .seconds(300))
+                do {
+                    try await Task.sleep(for: .seconds(300))
+                } catch {
+                    return
+                }
                 await liveChecker.checkLiveStatus()
             }
         }
