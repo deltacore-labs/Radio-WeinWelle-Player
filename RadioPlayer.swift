@@ -408,18 +408,19 @@ final class RadioPlayer: NSObject {
     private func fetchPlaylistMetadata() async {
         guard let url = station.playlistURL else { return }
         print("[Playlist] Hole Fallback-Metadaten von \(url)")
-        guard let (data, _) = try? await URLSession.shared.data(from: url),
+        var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData)
+        request.setValue("no-cache", forHTTPHeaderField: "Cache-Control")
+        guard let (data, _) = try? await URLSession.shared.data(for: request),
               let html = String(data: data, encoding: .utf8) else {
             print("[Playlist] Netzwerkfehler oder ungültiges HTML")
             return
         }
-        guard let titleMatch = html.firstMatch(of: /<h3>(.*?)<\/h3>/),
-              let artistMatch = html.firstMatch(of: /<h4>von\s+(.*?)<\/h4>/) else {
+        guard let match = html.firstMatch(of: /(?s)list-item-big.*?<h1>\s*(.*?)\s*<\/h1>.*?<h2>von\s+(.*?)\s*<\/h2>/) else {
             print("[Playlist] Kein Titel-/Künstlereintrag gefunden")
             return
         }
-        let title = String(titleMatch.1).trimmingCharacters(in: .whitespaces)
-        let artist = String(artistMatch.1).trimmingCharacters(in: .whitespaces)
+        let title = String(match.1).trimmingCharacters(in: .whitespaces)
+        let artist = String(match.2).trimmingCharacters(in: .whitespaces)
         guard !title.isEmpty, !artist.isEmpty else { return }
         guard nowPlaying.artist != artist || nowPlaying.title != title else {
             print("[Playlist] Identisch mit aktuellem Titel – ignoriert")
