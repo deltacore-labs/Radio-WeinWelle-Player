@@ -15,13 +15,13 @@ final class YouTubeLiveChecker {
             forHTTPHeaderField: "User-Agent"
         )
         request.timeoutInterval = 15
+        defer { lastChecked = Date() }
         do {
             let (data, _) = try await URLSession.shared.data(for: request)
             let html = String(data: data, encoding: .utf8) ?? ""
             isLive = html.contains("\"isLiveNow\":true")
-            lastChecked = Date()
         } catch {
-            // Netz nicht erreichbar — vorherigen Status behalten
+            // Netz nicht erreichbar — vorherigen isLive-Status behalten
         }
     }
 }

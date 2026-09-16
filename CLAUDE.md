@@ -35,12 +35,11 @@ In Xcode öffnen und auf Gerät deployen (Signing mit Team `A4HCRKN53K`).
 
 ## Projektstruktur
 
-- `RadioPlayer.swift` — AVPlayer-Logik, Icecast-Polling, Shazam-Fallback
-- `RadioStation.swift` — Stream-URL, Icecast-API-URL, Sendername
+- `RadioPlayer.swift` — AVPlayer-Logik, Icecast-Polling, Playlist-Scraping als Fallback
+- `RadioStation.swift` — Stream-URL, Icecast-API-URL, Playlist-URL, Sendername
 - `PlayerView.swift` — Haupt-UI mit animiertem Hintergrund
-- `ShazamRecognizer.swift` — Song-Erkennung wenn Stream keine Metadaten liefert
-- `Info.plist` — NSMicrophoneUsageDescription, UIBackgroundModes: audio, ATS-Ausnahme
-- `Radio-WeinWelle-Player.entitlements` — Sandbox, Netzwerk, Mikrofon
+- `Info.plist` — UIBackgroundModes: audio, ATS-Ausnahme
+- `Radio-WeinWelle-Player.entitlements` — Sandbox, Netzwerk
 
 ## Bundle-ID
 
@@ -48,6 +47,5 @@ In Xcode öffnen und auf Gerät deployen (Signing mit Team `A4HCRKN53K`).
 
 ## Bekannte Eigenheiten
 
-- `ShazamRecognizer.swift` ist doppelt in der Build-Phase eingetragen (gleiche UUID) — Xcode ignoriert das, aber es erzeugt eine Warnung.
 - Der `StreamLoader` (custom AVAssetResourceLoader) wurde entfernt — AVPlayer spielt den HTTPS-Icecast-Stream direkt ohne Workaround.
-- Shazam startet automatisch 15 Sekunden nach Play, wenn die Icecast-API keinen Titel liefert.
+- Metadaten-Priorität: ICY-Stream → Icecast JSON API (alle 15 s) → Playlist-Scraping (`https://www.radio-wein-welle.de/playlist`, Fallback wenn die ersten beiden nichts liefern).
