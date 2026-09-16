@@ -51,6 +51,8 @@ final class RadioPlayer: NSObject {
     @ObservationIgnored private var lastLegacyArtworkURL: URL?? = .none
     @ObservationIgnored private var songStartDate: Date? = nil
     @ObservationIgnored private var currentTrackDuration: TimeInterval? = nil
+    // Pre-downloaded artwork data — set before nowPlaying.artworkURL so both paths see it immediately
+    @ObservationIgnored private var cachedArtwork: (url: URL, data: Data)? = nil
 
     #if !os(tvOS)
     @ObservationIgnored private var _mediaSession: AnyObject?
@@ -69,6 +71,7 @@ final class RadioPlayer: NSObject {
         nowPlaying = NowPlayingInfo(title: station.name, artist: "", artworkURL: nil)
         log("[Player] init – Station: \(station.name), Stream: \(station.streamURL)")
         setupInterruptionHandling()
+        setupBackgroundObservers()
         #if !os(tvOS)
         if #available(iOS 27, macOS 27, *) {
             mediaSession = MediaSession(self)
@@ -197,6 +200,7 @@ final class RadioPlayer: NSObject {
         metadataOutput = nil
         songStartDate = nil
         currentTrackDuration = nil
+        cachedArtwork = nil
     }
 
     private func configureAudioSession() {
@@ -223,6 +227,41 @@ final class RadioPlayer: NSObject {
         )
         #endif
     }
+
+    private func setupBackgroundObservers() {
+        #if os(iOS)
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(appDidEnterBackground),
+            name: UIApplication.didEnterBackgroundNotification,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(appWillEnterForeground),
+            name: UIApplication.willEnterForegroundNotification,
+            object: nil
+        )
+        #endif
+    }
+
+    #if os(iOS)
+    @objc private nonisolated func appDidEnterBackground() {
+        Task { @MainActor in
+            guard self.state == .playing || self.state == .buffering else { return }
+            log("[Player] Hintergrund – normales Polling pausiert, Song-End-Watch aktiv")
+            self.startBackgroundPolling()
+        }
+    }
+
+    @objc private nonisolated func appWillEnterForeground() {
+        Task { @MainActor in
+            guard self.state == .playing || self.state == .buffering else { return }
+            log("[Player] Vordergrund – Polling wird wieder gestartet")
+            self.startPolling()
+        }
+    }
+    #endif
 
     #if os(iOS) || os(tvOS) || os(visionOS) || os(watchOS)
     @objc private nonisolated func handleInterruption(_ notification: Notification) {
@@ -287,13 +326,20 @@ final class RadioPlayer: NSObject {
         guard newState != lastLegacyArtworkURL else { return }
         lastLegacyArtworkURL = newState
         artworkTask?.cancel()
+        artworkTask = nil
         if let url = artworkURL {
+            // Use pre-downloaded data if available — avoids a second network request
+            if let cached = cachedArtwork, cached.url == url,
+               let image = PlatformImage(data: cached.data) {
+                setArtworkLegacy(image)
+                return
+            }
             artworkTask = Task { [weak self] in
                 guard let (data, _) = try? await URLSession.shared.data(from: url),
                       let self,
                       let image = PlatformImage(data: data),
                       self.lastLegacyArtworkURL == newState else { return }
-                setArtworkLegacy(image)
+                self.setArtworkLegacy(image)
             }
         } else {
             #if canImport(UIKit)
@@ -305,10 +351,16 @@ final class RadioPlayer: NSObject {
     }
 
     private func setArtworkLegacy(_ image: PlatformImage) {
+        let isActive = state == .playing || state == .buffering
         let artwork = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
-        var info = MPNowPlayingInfoCenter.default().nowPlayingInfo ?? [:]
-        info[MPMediaItemPropertyArtwork] = artwork
-        MPNowPlayingInfoCenter.default().nowPlayingInfo = info
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = [
+            MPMediaItemPropertyTitle: nowPlaying.title,
+            MPMediaItemPropertyArtist: nowPlaying.artist,
+            MPNowPlayingInfoPropertyIsLiveStream: true,
+            MPNowPlayingInfoPropertyPlaybackRate: isActive ? 1.0 : 0.0,
+            MPNowPlayingInfoPropertyElapsedPlaybackTime: 0,
+            MPMediaItemPropertyArtwork: artwork
+        ]
     }
 
     // MARK: - iTunes Cover-Art-Lookup
@@ -332,16 +384,24 @@ final class RadioPlayer: NSObject {
             return
         }
         let highRes = track.artworkUrl100.replacingOccurrences(of: "100x100bb", with: "600x600bb")
-        let coverFound = URL(string: highRes) != nil
         if let ms = track.trackTimeMillis {
             currentTrackDuration = Double(ms) / 1000.0
-            log("[iTunes] Cover: \(coverFound ? "JA" : "NEIN") | Dauer: \(ms / 1000)s (\(String(format: "%.1f", Double(ms) / 60000.0)) min)")
-        } else {
-            log("[iTunes] Cover: \(coverFound ? "JA" : "NEIN") | Dauer: unbekannt")
+            log("[iTunes] Dauer: \(ms / 1000)s (\(String(format: "%.1f", Double(ms) / 60000.0)) min)")
         }
-        nowPlaying.artworkURL = URL(string: highRes)
+        guard let artworkURL = URL(string: highRes),
+              let (imgData, _) = try? await URLSession.shared.data(from: artworkURL) else {
+            log("[iTunes] Artwork-Download fehlgeschlagen")
+            lastArtworkKey = ""
+            return
+        }
+        log("[iTunes] Artwork heruntergeladen (\(imgData.count / 1024) KB)")
+        // Cache first — both paths read this before/during nowPlaying update
+        cachedArtwork = (url: artworkURL, data: imgData)
+        nowPlaying.artworkURL = artworkURL
         #if !os(tvOS)
-        if #available(iOS 27, macOS 27, *) {} else {
+        if #available(iOS 27, macOS 27, *) {
+            // MediaSession observes nowPlaying via @Observable; content liest cachedArtwork
+        } else {
             updateNowPlayingCenterLegacy()
         }
         #else
@@ -373,6 +433,31 @@ final class RadioPlayer: NSObject {
         log("[Icecast] Polling gestoppt")
         pollingTask?.cancel()
         pollingTask = nil
+    }
+
+    private func startBackgroundPolling() {
+        guard station.nowPlayingURL != nil else { return }
+        pollingTask?.cancel()
+        pollingTask = Task { [weak self] in
+            while !Task.isCancelled {
+                guard let self else { return }
+                let interval = self.nextBackgroundInterval()
+                log("[Icecast] Hintergrund – nächster Check in \(Int(interval.components.seconds))s")
+                try? await Task.sleep(for: interval)
+                guard !Task.isCancelled else { return }
+                log("[Icecast] Hintergrund – Song-Ende erwartet, Metadaten werden aktualisiert")
+                await self.fetchIcecastMetadata()
+            }
+        }
+    }
+
+    private func nextBackgroundInterval() -> Duration {
+        if let start = songStartDate, let duration = currentTrackDuration {
+            let elapsed = Date().timeIntervalSince(start)
+            let remaining = duration - elapsed + 2  // 2s Puffer nach Song-Ende
+            if remaining > 5 { return .seconds(remaining) }
+        }
+        return .seconds(180)  // unbekannte Dauer: alle 3 Minuten prüfen
     }
 
     private func nextPollingInterval() -> Duration {
@@ -504,6 +589,13 @@ extension RadioPlayer: MediaSessionRepresentable {
     var content: (any MediaContentRepresentable)? {
         let artworkObj: Artwork? = {
             if let url = nowPlaying.artworkURL {
+                // Use pre-downloaded data when available — avoids network request in closure
+                if let cached = cachedArtwork, cached.url == url {
+                    let capturedData = cached.data
+                    return Artwork(id: url.absoluteString) { _ in
+                        return try ArtworkRepresentation(data: capturedData)
+                    }
+                }
                 return Artwork(id: url.absoluteString) { _ in
                     let (data, _) = try await URLSession.shared.data(from: url)
                     return try ArtworkRepresentation(data: data)

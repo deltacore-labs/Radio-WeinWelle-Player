@@ -180,7 +180,16 @@ struct PlayerView: View {
     @ViewBuilder
     private func cardBackground(cornerRadius: CGFloat) -> some View {
         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-            .fill(.ultraThinMaterial)
+            .fill(
+                LinearGradient(
+                    colors: [
+                        Color(red: 0.10, green: 0.14, blue: 0.26).opacity(0.92),
+                        Color(red: 0.03, green: 0.07, blue: 0.17).opacity(0.92),
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
             .overlay {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .strokeBorder(
@@ -212,6 +221,10 @@ struct PlayerView: View {
     // MARK: - Shared sub-views (iOS/macOS)
 
     #if !os(tvOS)
+    @State private var artworkTiltX: Double = 0
+    @State private var artworkTiltY: Double = 0
+    @State private var artworkTilting = false
+
     @ViewBuilder
     private var artwork: some View {
         AsyncImage(url: player.nowPlaying.artworkURL) { image in
@@ -252,6 +265,45 @@ struct PlayerView: View {
         .shadow(color: .black.opacity(0.55), radius: 24, y: 10)
         .scaleEffect(isPlaying ? 1.04 : 1.0)
         .animation(.spring(response: 0.6, dampingFraction: 0.75), value: isPlaying)
+        .rotation3DEffect(.degrees(artworkTiltX), axis: (1, 0, 0), perspective: 0.4)
+        .rotation3DEffect(.degrees(artworkTiltY), axis: (0, 1, 0), perspective: 0.4)
+        .animation(.interactiveSpring(response: 0.20, dampingFraction: 0.70), value: artworkTiltX)
+        .animation(.interactiveSpring(response: 0.20, dampingFraction: 0.70), value: artworkTiltY)
+        .overlay {
+            RoundedRectangle(cornerRadius: 26, style: .continuous)
+                .fill(
+                    RadialGradient(
+                        colors: [.white.opacity(0.28), .clear],
+                        center: UnitPoint(
+                            x: 0.5 + artworkTiltY / 36.0,
+                            y: 0.5 - artworkTiltX / 36.0
+                        ),
+                        startRadius: 10,
+                        endRadius: 170
+                    )
+                )
+                .blendMode(.screen)
+                .opacity(artworkTilting ? 1 : 0)
+                .animation(.easeOut(duration: 0.25), value: artworkTilting)
+                .allowsHitTesting(false)
+        }
+        .gesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { value in
+                    let dx = min(max((value.location.x - 155) / 155, -1.0), 1.0)
+                    let dy = min(max((value.location.y - 155) / 155, -1.0), 1.0)
+                    artworkTiltY = dx * 18
+                    artworkTiltX = -dy * 18
+                    artworkTilting = true
+                }
+                .onEnded { _ in
+                    withAnimation(.spring(response: 0.55, dampingFraction: 0.65)) {
+                        artworkTiltX = 0
+                        artworkTiltY = 0
+                        artworkTilting = false
+                    }
+                }
+        )
     }
 
     @ViewBuilder
@@ -350,30 +402,36 @@ private struct WeinBackground: View {
                 endPoint: .bottomTrailing
             )
 
-            TimelineView(.animation(minimumInterval: 1.0 / 15, paused: !isPlaying || scenePhase != .active)) { ctx in
+            TimelineView(.animation(minimumInterval: 1.0 / 8, paused: !isPlaying || scenePhase != .active)) { ctx in
                 let t = ctx.date.timeIntervalSinceReferenceDate
                 GeometryReader { geo in
                     let w = geo.size.width
                     let h = geo.size.height
                     ZStack {
                         Circle()
-                            .fill(Color(red: 0.757, green: 0.184, blue: 0.212).opacity(0.75))
+                            .fill(RadialGradient(
+                                colors: [Color(red: 0.757, green: 0.184, blue: 0.212).opacity(0.80), .clear],
+                                center: .center, startRadius: 0, endRadius: w * 0.375
+                            ))
                             .frame(width: w * 0.75, height: w * 0.75)
-                            .blur(radius: w * 0.22)
                             .offset(x: sin(t * 0.25) * w * 0.15,
                                     y: cos(t * 0.18) * h * 0.15 - h * 0.22)
 
                         Circle()
-                            .fill(Color(red: 0.992, green: 0.725, blue: 0.075).opacity(0.45))
+                            .fill(RadialGradient(
+                                colors: [Color(red: 0.992, green: 0.725, blue: 0.075).opacity(0.50), .clear],
+                                center: .center, startRadius: 0, endRadius: w * 0.275
+                            ))
                             .frame(width: w * 0.55, height: w * 0.55)
-                            .blur(radius: w * 0.18)
                             .offset(x: cos(t * 0.30 + 1.5) * w * 0.18 + w * 0.22,
                                     y: sin(t * 0.22 + 0.5) * h * 0.12 + h * 0.18)
 
                         Circle()
-                            .fill(Color(red: 0.831, green: 0.000, blue: 0.188).opacity(0.55))
+                            .fill(RadialGradient(
+                                colors: [Color(red: 0.831, green: 0.000, blue: 0.188).opacity(0.60), .clear],
+                                center: .center, startRadius: 0, endRadius: w * 0.325
+                            ))
                             .frame(width: w * 0.65, height: w * 0.65)
-                            .blur(radius: w * 0.20)
                             .offset(x: sin(t * 0.20 + 3.0) * w * 0.12 - w * 0.18,
                                     y: cos(t * 0.28 + 1.0) * h * 0.15 + h * 0.12)
                     }
@@ -405,6 +463,7 @@ private struct ArtworkBackground: View {
                         .blur(radius: 55, opaque: true)
                         .saturation(1.6)
                         .brightness(-0.08)
+                        .drawingGroup()
                         .blendMode(.overlay)
                         .opacity(opacity)
                         .onAppear {
@@ -472,7 +531,7 @@ private struct MarqueeText: View {
 
             if tw > cw && tw > 0 {
                 let cycle = Double(tw + gap)
-                TimelineView(.animation(minimumInterval: 1.0 / 30, paused: !isPlaying)) { ctx in
+                TimelineView(.animation(minimumInterval: 1.0 / 15, paused: !isPlaying)) { ctx in
                     let elapsed = max(0, ctx.date.timeIntervalSince(startDate) - pauseSeconds)
                     let phase = CGFloat((elapsed * speed).truncatingRemainder(dividingBy: cycle))
                     HStack(spacing: gap) {

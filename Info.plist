@@ -4,10 +4,18 @@
 <dict>
 	<key>CFBundleDisplayName</key>
 	<string>Radio Wein-Welle</string>
-	<key>LSApplicationCategoryType</key>
-	<string>public.app-category.lifestyle</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIcons</key>
+	<dict>
+		<key>CFBundlePrimaryIcon</key>
+		<string>AppIcon</string>
+	</dict>
+	<key>CFBundleIcons~tv</key>
+	<dict>
+		<key>CFBundlePrimaryIcon</key>
+		<string>AppIcon-TV</string>
+	</dict>
 	<key>CFBundleIdentifier</key>
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleName</key>
@@ -18,6 +26,8 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.lifestyle</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSExceptionDomains</key>
@@ -30,6 +40,11 @@
 				<false/>
 			</dict>
 		</dict>
+	</dict>
+	<key>TVTopShelfImage</key>
+	<dict>
+		<key>TVTopShelfPrimaryImageWide</key>
+		<string>TopShelfImageWide</string>
 	</dict>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
@@ -44,21 +59,6 @@
 	</array>
 	<key>UILaunchScreen</key>
 	<dict/>
-	<key>CFBundleIcons</key>
-	<dict>
-		<key>CFBundlePrimaryIcon</key>
-		<string>AppIcon</string>
-	</dict>
-	<key>CFBundleIcons~tv</key>
-	<dict>
-		<key>CFBundlePrimaryIcon</key>
-		<string>AppIcon-TV</string>
-	</dict>
-<key>TVTopShelfImage</key>
-	<dict>
-		<key>TVTopShelfPrimaryImageWide</key>
-		<string>TopShelfImageWide</string>
-	</dict>
 	<key>UIStatusBarStyle</key>
 	<string>UIStatusBarStyleDefault</string>
 	<key>UISupportedInterfaceOrientations</key>
