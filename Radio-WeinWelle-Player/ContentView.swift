@@ -26,11 +26,11 @@ struct ContentView: View {
             LegalInfoView()
                 .tabItem { Label("Info", systemImage: "info.circle") }
         }
-        .tint(Color(red: 0.757, green: 0.184, blue: 0.212))
+        .tint(Color(red: 0.757, green: 0.184, blue: 0.212)) // #c12f36 Wein-Welle brand red
         .task {
             await liveChecker.checkLiveStatus()
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(300))
+                try await Task.sleep(for: .seconds(300))
                 await liveChecker.checkLiveStatus()
             }
         }
