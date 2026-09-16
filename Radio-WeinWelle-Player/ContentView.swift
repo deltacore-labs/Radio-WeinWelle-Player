@@ -1,12 +1,8 @@
-//
-//  ContentView.swift
-//  Radio-WeinWelle-Player
-//
-
 import SwiftUI
 
 struct ContentView: View {
     @Environment(RadioPlayer.self) private var player
+    @State private var liveChecker = YouTubeLiveChecker()
 
     var body: some View {
         #if os(tvOS)
@@ -19,10 +15,25 @@ struct ContentView: View {
             WebsiteView(url: player.station.websiteURL)
                 .tabItem { Label("Webseite", systemImage: "globe") }
 
+            NavigationStack {
+                YouTubeLiveView(checker: liveChecker)
+                    .navigationTitle("YouTube Live")
+                    .navigationBarTitleDisplayMode(.inline)
+            }
+            .tabItem { Label("Live", systemImage: "play.rectangle.fill") }
+            .badge(liveChecker.isLive ? "LIVE" : nil)
+
             LegalInfoView()
                 .tabItem { Label("Info", systemImage: "info.circle") }
         }
-        .tint(Color(red: 0.757, green: 0.184, blue: 0.212)) // #c12f36 Wein-Welle brand red
+        .tint(Color(red: 0.757, green: 0.184, blue: 0.212))
+        .task {
+            await liveChecker.checkLiveStatus()
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(300))
+                await liveChecker.checkLiveStatus()
+            }
+        }
         #endif
     }
 }
